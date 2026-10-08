@@ -1,108 +1,78 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vijay Sales Lead Scoring</title>
-    
-    <!-- 1. PLACE SUPABASE CDN HERE (Inside <head>) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- Your existing CSS styles or links can go here too -->
-</head>
-<body>
+<script>
+    async function processAndSaveLead() {
+        const sbUrl = document.getElementById('supabase-url').value.trim();
+        const sbKey = document.getElementById('supabase-key').value.trim();
+        const groqKey = document.getElementById('groq-key').value.trim();
+        
+        const customerName = document.getElementById('customer-name').value.trim();
+        const reviewText = document.getElementById('review-text').value.trim();
+        const outputDiv = document.getElementById('results-output');
 
-    <!-- Your existing website content... -->
-    <h1>Vijay Sales Kalkaji - Lead Scoring Dashboard</h1>
-
-
-    <!-- 2. PLACE HTML UI ELEMENTS HERE (Inside <body> where you want them visible) -->
-    <div id="config-panel" style="background: #f4f4f4; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
-        <h3>API & Database Configuration</h3>
-        <label>Supabase URL: <input type="text" id="supabase-url" placeholder="https://xyz.supabase.co" style="width: 100%; margin-bottom: 8px;"></label>
-        <label>Supabase Anon Key: <input type="password" id="supabase-key" placeholder="eyJhbG..." style="width: 100%; margin-bottom: 8px;"></label>
-        <label>Groq API Key: <input type="password" id="groq-key" placeholder="gsk_..." style="width: 100%;"></label>
-    </div>
-
-    <div id="lead-form-section">
-        <h3>Analyze & Add New Lead</h3>
-        <input type="text" id="customer-name" placeholder="Customer Name" style="display: block; margin-bottom: 8px; width: 100%;">
-        <textarea id="review-text" placeholder="Paste customer review or feedback here..." style="display: block; margin-bottom: 8px; width: 100%; height: 80px;"></textarea>
-        <button onclick="processAndSaveLead()" style="background: #007bff; color: white; padding: 10px 15px; border: none; cursor: pointer;">Analyze with Groq & Save to Supabase</button>
-    </div>
-
-    <div id="results-output" style="margin-top: 20px; font-weight: bold;"></div>
-
-
-    <!-- 3. PLACE JAVASCRIPT LOGIC HERE (Right before closing </body> tag) -->
-    <script>
-        async function processAndSaveLead() {
-            const sbUrl = document.getElementById('supabase-url').value.trim();
-            const sbKey = document.getElementById('supabase-key').value.trim();
-            const groqKey = document.getElementById('groq-key').value.trim();
-            
-            const customerName = document.getElementById('customer-name').value.trim();
-            const reviewText = document.getElementById('review-text').value.trim();
-            const outputDiv = document.getElementById('results-output');
-
-            if (!sbUrl || !sbKey || !groqKey) {
-                alert("Please fill in your Supabase URL, Supabase Key, and Groq API Key.");
-                return;
-            }
-
-            outputDiv.innerText = "Analyzing review with Groq AI...";
-
-            try {
-                // Call Groq API
-                const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${groqKey}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        model: "llama-3.3-70b-versatile",
-                        messages: [
-                            {
-                                role: "system", 
-                                content: "You are a sales lead scoring assistant for a retail store (Vijay Sales Kalkaji). Analyze the customer review. Output ONLY a valid JSON object with keys: 'score' (0 to 100 integer), 'tier' ('Hot', 'Warm', or 'Cold'), and 'reasoning' (short text)."
-                            },
-                            { role: "user", content: reviewText }
-                        ],
-                        response_format: { type: "json_object" }
-                    })
-                });
-
-                const groqData = await groqResponse.json();
-                const analysis = JSON.parse(groqData.choices[0].message.content);
-
-                outputDiv.innerText = `AI Analysis Complete! Score: ${analysis.score} | Tier: ${analysis.tier}. Saving to Supabase...`;
-
-                // Initialize Supabase dynamically
-                const _supabase = supabase.createClient(sbUrl, sbKey);
-
-                // Save to Supabase table ('leads')
-                const { data, error } = await _supabase
-                    .from('leads')
-                    .insert([{
-                        customer_name: customerName,
-                        review_text: reviewText,
-                        calculated_lead_score: analysis.score,
-                        tier: analysis.tier,
-                        firmographic_data: { source: "Vijay Sales Kalkaji Google Review", ai_reasoning: analysis.reasoning }
-                    }])
-                    .select();
-
-                if (error) throw error;
-
-                outputDiv.innerText = `Success! Lead saved. Tier assigned: ${analysis.tier}`;
-                
-            } catch (err) {
-                console.error(err);
-                outputDiv.innerText = `Error: ${err.message}`;
-            }
+        if (!sbUrl || !sbKey || !groqKey) {
+            alert("Please fill in your Supabase URL, Supabase Key, and Groq API Key.");
+            return;
         }
-    </script>
 
-</body>
-</html>
+        outputDiv.innerText = "Analyzing review with Groq AI...";
+
+        try {
+            // Call Groq API using the gpt-oss-120b model
+            const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${groqKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: "openai/gpt-oss-120b",
+                    messages: [
+                        {
+                            role: "system", 
+                            content: "You are a sales lead scoring assistant for a retail store (Vijay Sales Kalkaji). Analyze the customer review. Output ONLY a valid JSON object with keys: 'score' (0 to 100 integer), 'tier' ('Hot', 'Warm', or 'Cold'), and 'reasoning' (short text)."
+                        },
+                        { role: "user", content: reviewText }
+                    ],
+                    response_format: { type: "json_object" }
+                })
+            });
+
+            const groqData = await groqResponse.json();
+
+            // Check if Groq returned an error
+            if (groqData.error) {
+                throw new Error(`Groq API Error: ${groqData.error.message}`);
+            }
+
+            if (!groqData.choices || groqData.choices.length === 0) {
+                throw new Error("Groq returned an empty response. Check your API key or try again.");
+            }
+
+            const analysis = JSON.parse(groqData.choices[0].message.content);
+
+            outputDiv.innerText = `AI Analysis Complete! Score: ${analysis.score} | Tier: ${analysis.tier}. Saving to Supabase...`;
+
+            // Initialize Supabase dynamically
+            const _supabase = supabase.createClient(sbUrl, sbKey);
+
+            // Save to Supabase table ('leads')
+            const { data, error } = await _supabase
+                .from('leads')
+                .insert([{
+                    customer_name: customerName,
+                    review_text: reviewText,
+                    calculated_lead_score: analysis.score,
+                    tier: analysis.tier,
+                    firmographic_data: { source: "Vijay Sales Kalkaji Google Review", ai_reasoning: analysis.reasoning }
+                }])
+                .select();
+
+            if (error) throw error;
+
+            outputDiv.innerText = `Success! Lead saved. Tier assigned: ${analysis.tier}`;
+            
+        } catch (err) {
+            console.error(err);
+            outputDiv.innerText = `Error: ${err.message}`;
+        }
+    }
+</script>
